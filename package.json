@@ -1,36 +1,15 @@
 {
-  "name": "telegram-bot",
+  "name": "developments-gamedev-bot",
   "version": "1.0.0",
-  "description": "Telegram Bot that greets people, powered by Cyclic.",
+  "description": "Бот для сохъранения постов о процессе разработки игр, наработок",
   "main": "dist/bot.js",
   "scripts": {
     "build": "tsc",
     "start": "node dist/bot.js",
-    "dev": "env-cmd ts-node-dev src/bot.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "env-cmd ts-node-dev src/bot.ts"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/eludadev/telegram-bot.git"
-  },
-  "keywords": [
-    "chat",
-    "bot",
-    "unicode",
-    "social-media",
-    "bots",
-    "telegram",
-    "serverless",
-    "telegram-bot",
-    "chatbot",
-    "text-effects"
-  ],
-  "author": "eludadev",
+  "author": "nmgix",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/eludadev/telegram-bot/issues"
-  },
-  "homepage": "https://github.com/eludadev/telegram-bot#readme",
   "devDependencies": {
     "@types/express": "^4.17.14",
     "@types/lodash": "^4.14.188",
