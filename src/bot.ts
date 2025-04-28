@@ -6,19 +6,27 @@ import { guard, isPrivateChat, reply, isUserHasId, and } from "grammy-guard";
 // мой tg id -----\/
 const WHITELIST = [1039326679];
 
-import { type ConversationFlavor, conversations } from "@grammyjs/conversations";
-export const bot = new Bot<ConversationFlavor<Context>>(process.env.TELEGRAM_TOKEN || "");
-bot.use(conversations());
-bot.command("start", guard(and(isPrivateChat, isUserHasId(...WHITELIST)), reply("/start is only available in private chat!")), ctx =>
-  ctx.reply(replies.botIntro)
-);
+// import topicMessagesHandlingWrapper from "./routes/topic.messages-handling";
+import { handleMessage } from "./routes/topic.messages-handling";
 
 import { botProxy } from "./types/data";
 const devBotProxy = botProxy();
+import { type ConversationFlavor, conversations } from "@grammyjs/conversations";
+export const bot = new Bot<ConversationFlavor<Context> & { session: { handled: boolean } }>(process.env.TELEGRAM_TOKEN || "");
+bot.use(guard(and(isPrivateChat, isUserHasId(...WHITELIST)), reply("/start is only available in private chat!")));
 
-import topicWrapper, { commands as topicCommands } from "./routes/topic";
+bot.use(conversations());
+bot.use(async (ctx, next) => {
+  ctx.session = { handled: false };
+  await next();
+  if (!ctx.session.handled && ctx.message) handleMessage(ctx, devBotProxy);
+});
+bot.command("start", ctx => ctx.reply(replies.botIntro));
+
+import topicCrudWrapper, { commands as topicCommands } from "./routes/topic.crud";
 import { replies } from "./types/replies";
-topicWrapper(bot, devBotProxy);
+topicCrudWrapper(bot, devBotProxy);
+
 bot.api.setMyCommands([...topicCommands]);
 
 if (process.env.NODE_ENV === "production") {

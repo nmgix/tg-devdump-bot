@@ -34,54 +34,80 @@ export const renderInlineTopicKeyboard = () => {
 };
 
 export default function (bot: typeof botInstance, botProxy: BotData) {
+  // напрямую пишешь /topic [топик]
   bot.command("topic", async ctx => {
+    ctx.session.handled = true;
     const topic = ctx.message?.text.replace("/topic", "").trim();
 
     if (topic) {
       botProxy.currentTopic = topic;
       if (botProxy.existingTopics.includes(topic)) {
-        await ctx.reply(replies.topicHeader(`\n${replies.topicExistsSelected}`));
+        // replies.topicHeader(`\n${replies.topicExistsSelected}`)
+        await ctx.reply(replies.topicExistsSelected);
       } else {
         botProxy.existingTopics.push(topic);
-        await ctx.reply(replies.topicHeader(`\n${replies.topicAdded}`));
+        // replies.topicHeader(`\n${replies.topicAdded}`)
+        await ctx.reply(replies.topicAdded);
       }
     } else {
-      await ctx.reply(replies.topicHeader(`\n${replies.topicDefault(botProxy.currentTopic)}`), {
+      // replies.topicHeader(`\n${replies.topicDefault(botProxy.currentTopic)}`)
+      await ctx.reply(replies.topicDefault(botProxy.currentTopic), {
         reply_markup: renderInlineTopicKeyboard(),
         parse_mode: "Markdown"
       });
     }
   });
 
+  // inline кнопка view topics
   bot.callbackQuery(topicOptions[1].code, async ctx => {
+    ctx.session.handled = true;
     try {
       const posts: TopicData[] = fs
         .readdirSync(postsPath, { withFileTypes: true })
         .map(topic => ({ label: topic.name, postsAmount: fs.readdirSync(path.join(postsPath, topic.name)).length }))
         .sort((a, b) => b.postsAmount - a.postsAmount);
+
+      botProxy.existingTopics = posts.map(p => p.label);
+
       const keyboard = renderInlineTopicKeyboard();
       for (let i = 0; i < posts.length; i++) {
         keyboard.text(`${i + 1}. ${posts[i].label} (${posts[i].postsAmount})\n`, `topic:${posts[i].label}`);
         keyboard.row();
       }
-      await ctx.editMessageText(replies.topicHeader(`: Просмотр\n${replies.topicView(posts)}`), { reply_markup: keyboard, parse_mode: "Markdown" });
+      // replies.topicHeader(`: Просмотр\n${replies.topicView(posts)}`)
+      try {
+        await ctx.editMessageText(replies.topicView(posts), { reply_markup: keyboard, parse_mode: "Markdown" });
+      } catch (error) {
+        console.log("Ничего не изменилось в запросе, та-жеinline кнопка нажата, не кидать ошибку");
+        // Call to 'editMessageText' failed! (400: Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message)
+      }
     } catch (error) {
       console.log(error);
-      await ctx.reply(replies.topicHeader(`\n${replies.topicError}`));
+      // replies.topicHeader(`\n${replies.topicError}`)
+      await ctx.reply(replies.topicError);
     }
   });
+  // inline кнопка с именем топика чтобы выбрать его
   bot.callbackQuery(/^topic:(.+)$/, async ctx => {
+    ctx.session.handled = true;
     const topicLabel = ctx.match[1];
     await ctx.answerCallbackQuery();
 
     botProxy.currentTopic = topicLabel;
 
-    await ctx.editMessageText(replies.topicHeader(`\n${`${replies.topicSelected}. Текущий: **${botProxy.currentTopic}**`}`), {
-      reply_markup: renderInlineTopicKeyboard(),
-      parse_mode: "Markdown"
-    });
+    // replies.topicHeader(`\n${`${replies.topicSelected}. Текущий: **${botProxy.currentTopic}**`}`)
+    try {
+      await ctx.editMessageText(`${replies.topicSelected}. Текущий: **${botProxy.currentTopic}**`, {
+        reply_markup: renderInlineTopicKeyboard(),
+        parse_mode: "Markdown"
+      });
+    } catch (error) {
+      console.log("Ничего не изменилось в запросе, та-же inline кнопка нажата, не кидать ошибку");
+      // Call to 'editMessageText' failed! (400: Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message)
+    }
   });
 
+  // редактирование топика
   async function editTopic(conversation: Conversation, ctx0: Context) {
     try {
       await ctx0.reply(replies.topicOldName);
@@ -116,6 +142,7 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
   }
   bot.use(createConversation(editTopic));
   bot.callbackQuery(topicOptions[2].code, async ctx => {
+    ctx.session.handled = true;
     try {
       await ctx.answerCallbackQuery();
       await ctx.conversation.enter("editTopic");
@@ -126,6 +153,7 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
     }
   });
 
+  // создание топика
   async function createTopic(conversation: Conversation, ctx0: Context) {
     try {
       await ctx0.reply(replies.topicNewName);
@@ -150,6 +178,7 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
   }
   bot.use(createConversation(createTopic));
   bot.callbackQuery(topicOptions[0].code, async ctx => {
+    ctx.session.handled = true;
     try {
       // await ctx.editMessageText(replies.topicAdded, { reply_markup: renderInlineTopicKeyboard() });
       await ctx.answerCallbackQuery();
