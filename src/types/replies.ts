@@ -17,10 +17,12 @@ export const replies = {
   //       return `**${index + 1}**. [${topic.label}](https://t.me/developments_gamedev_bot?topic=${topic.label}) (${topic.postsAmount})\n`;
   //     })
   //     .join("")}`,
-  topicView: (data: TopicData[]) => `Список всех топиков (${data.length}), сортировка по кол-ву постов:`,
+  topicView: (data: TopicData[]) => `Список всех топиков (${data.length}), сортировка по кол-ву постов`,
+  topicViewEmpty: "( • ᴖ • ｡) пока топиков нет, жми `Добавить топик`",
   topicViewRequesting: `📜 Получаю посты`,
   topicEdited: "✅ Топик изменён",
-  topicLengthError: (minTopicLength: number) => `Либо не указал, либо длина топика меньше ${minTopicLength} символов`,
+  topicLengthZero: `Не указал топик, пустая строчка (ó﹏ò｡)`,
+  topicLengthError: (minTopicLength: number) => `Длина топика меньше ${minTopicLength} символов`,
   topicOldName: "Введи старое имя топика",
   topicNewName: "Введи новое имя топика",
   topicHeader: (restOfText: string) => `ℹ️ Топики${restOfText}`,

@@ -36,7 +36,6 @@ export const renderInlineTopicKeyboard = () => {
 export default function (bot: typeof botInstance, botProxy: BotData) {
   // напрямую пишешь /topic [топик]
   bot.command("topic", async ctx => {
-    ctx.session.handled = true;
     const topic = ctx.message?.text.replace("/topic", "").trim();
 
     if (topic) {
@@ -51,7 +50,7 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
       }
     } else {
       // replies.topicHeader(`\n${replies.topicDefault(botProxy.currentTopic)}`)
-      await ctx.reply(replies.topicDefault(botProxy.currentTopic), {
+      await ctx.reply(replies.topicDefault(botProxy.currentTopic.replace(/([\\_*@])/g, "\\$1")), {
         reply_markup: renderInlineTopicKeyboard(),
         parse_mode: "Markdown"
       });
@@ -60,10 +59,10 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
 
   // inline кнопка view topics
   bot.callbackQuery(topicOptions[1].code, async ctx => {
-    ctx.session.handled = true;
     try {
       const posts: TopicData[] = fs
         .readdirSync(postsPath, { withFileTypes: true })
+        // TODO: .length неправильное кол-во будет возвращать ибо все посты сейчас идут в кучу в одну папку а не подпапки
         .map(topic => ({ label: topic.name, postsAmount: fs.readdirSync(path.join(postsPath, topic.name)).length }))
         .sort((a, b) => b.postsAmount - a.postsAmount);
 
@@ -74,14 +73,19 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
         keyboard.text(`${i + 1}. ${posts[i].label} (${posts[i].postsAmount})\n`, `topic:${posts[i].label}`);
         keyboard.row();
       }
-      // replies.topicHeader(`: Просмотр\n${replies.topicView(posts)}`)
       try {
-        await ctx.editMessageText(replies.topicView(posts), { reply_markup: keyboard, parse_mode: "Markdown" });
+        await ctx.editMessageText(posts.length > 0 ? replies.topicView(posts) : replies.topicViewEmpty, {
+          reply_markup: keyboard,
+          parse_mode: "Markdown"
+        });
       } catch (error) {
+        console.log(error);
+        await ctx.answerCallbackQuery();
         console.log("Ничего не изменилось в запросе, та-жеinline кнопка нажата, не кидать ошибку");
         // Call to 'editMessageText' failed! (400: Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message)
       }
     } catch (error) {
+      await ctx.answerCallbackQuery();
       console.log(error);
       // replies.topicHeader(`\n${replies.topicError}`)
       await ctx.reply(replies.topicError);
@@ -89,7 +93,6 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
   });
   // inline кнопка с именем топика чтобы выбрать его
   bot.callbackQuery(/^topic:(.+)$/, async ctx => {
-    ctx.session.handled = true;
     const topicLabel = ctx.match[1];
     await ctx.answerCallbackQuery();
 
@@ -97,11 +100,13 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
 
     // replies.topicHeader(`\n${`${replies.topicSelected}. Текущий: **${botProxy.currentTopic}**`}`)
     try {
-      await ctx.editMessageText(`${replies.topicSelected}. Текущий: **${botProxy.currentTopic}**`, {
+      await ctx.editMessageText(`${replies.topicSelected}. Текущий: **${botProxy.currentTopic.replace(/([\\_*@])/g, "\\$1")}**`, {
         reply_markup: renderInlineTopicKeyboard(),
         parse_mode: "Markdown"
       });
     } catch (error) {
+      console.log(error);
+      await ctx.answerCallbackQuery();
       console.log("Ничего не изменилось в запросе, та-же inline кнопка нажата, не кидать ошибку");
       // Call to 'editMessageText' failed! (400: Bad Request: message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message)
     }
@@ -110,19 +115,21 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
   // редактирование топика
   async function editTopic(conversation: Conversation, ctx0: Context) {
     try {
-      await ctx0.reply(replies.topicOldName);
+      await ctx0.reply(replies.topicOldName, { reply_markup: { force_reply: true } });
       const ctx1 = await conversation.waitFor("message:text");
+      ctx0.deleteMessage();
       if (typeof ctx1.message.text !== "string" || ctx1.message.text.trim().length < MIN_DEVPOST_NAME_LENGTH) {
-        throw new Error(replies.topicLengthError(MIN_DEVPOST_NAME_LENGTH));
+        throw new Error(ctx1.message.text.trim().length === 0 ? replies.topicLengthZero : replies.topicLengthError(MIN_DEVPOST_NAME_LENGTH));
       }
 
       if (!botProxy.existingTopics.includes(ctx1.message.text)) throw new Error("Указанный топик не найден");
       const oldTopic = ctx1.message.text.trim();
 
-      await ctx1.reply(replies.topicNewName);
+      await ctx1.reply(replies.topicNewName, { reply_markup: { force_reply: true } });
       const ctx2 = await conversation.waitFor("message:text");
+      ctx1.deleteMessage();
       if (typeof ctx2.message.text !== "string" || ctx2.message.text.trim().length < MIN_DEVPOST_NAME_LENGTH) {
-        throw new Error(replies.topicLengthError(MIN_DEVPOST_NAME_LENGTH));
+        throw new Error(ctx2.message.text.trim().length === 0 ? replies.topicLengthZero : replies.topicLengthError(MIN_DEVPOST_NAME_LENGTH));
       }
       const newTopic = ctx2.message.text.trim();
 
@@ -130,7 +137,7 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
       botProxy.existingTopics = [...botProxy.existingTopics.filter(t => t !== oldTopic), newTopic];
       await conversation.external(() => fs.renameSync(path.join(postsPath, oldTopic), path.join(postsPath, newTopic)));
 
-      await ctx2.reply(`${replies.topicEdited}. Текущий: **${botProxy.currentTopic}**`, {
+      await ctx2.reply(`${replies.topicEdited}. Текущий: **${botProxy.currentTopic.replace(/([\\_*@])/g, "\\$1")}**`, {
         reply_markup: renderInlineTopicKeyboard(),
         parse_mode: "Markdown"
       });
@@ -142,7 +149,6 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
   }
   bot.use(createConversation(editTopic));
   bot.callbackQuery(topicOptions[2].code, async ctx => {
-    ctx.session.handled = true;
     try {
       await ctx.answerCallbackQuery();
       await ctx.conversation.enter("editTopic");
@@ -159,7 +165,7 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
       await ctx0.reply(replies.topicNewName);
       const ctx1 = await conversation.waitFor("message:text");
       if (typeof ctx1.message.text !== "string" || ctx1.message.text.trim().length < MIN_DEVPOST_NAME_LENGTH) {
-        throw new Error(replies.topicLengthError(MIN_DEVPOST_NAME_LENGTH));
+        throw new Error(ctx1.message.text.trim().length === 0 ? replies.topicLengthZero : replies.topicLengthError(MIN_DEVPOST_NAME_LENGTH));
       }
       const newTopic = ctx1.message.text.trim();
 
@@ -167,7 +173,7 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
       botProxy.existingTopics = [...botProxy.existingTopics, newTopic];
       await conversation.external(() => fs.mkdirSync(path.join(postsPath, newTopic)));
 
-      await ctx1.reply(`${replies.topicAdded}. Текущий: **${botProxy.currentTopic}**`, {
+      await ctx1.reply(`${replies.topicAdded}. Текущий: **${botProxy.currentTopic.replace(/([\\_*@])/g, "\\$1")}**`, {
         reply_markup: renderInlineTopicKeyboard(),
         parse_mode: "Markdown"
       });
@@ -178,7 +184,6 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
   }
   bot.use(createConversation(createTopic));
   bot.callbackQuery(topicOptions[0].code, async ctx => {
-    ctx.session.handled = true;
     try {
       // await ctx.editMessageText(replies.topicAdded, { reply_markup: renderInlineTopicKeyboard() });
       await ctx.answerCallbackQuery();

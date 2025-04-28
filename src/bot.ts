@@ -12,14 +12,17 @@ import { handleMessage } from "./routes/topic.messages-handling";
 import { botProxy } from "./types/data";
 const devBotProxy = botProxy();
 import { type ConversationFlavor, conversations } from "@grammyjs/conversations";
-export const bot = new Bot<ConversationFlavor<Context> & { session: { handled: boolean } }>(process.env.TELEGRAM_TOKEN || "");
-bot.use(guard(and(isPrivateChat, isUserHasId(...WHITELIST)), reply("/start is only available in private chat!")));
+
+export type BotContext = ConversationFlavor<Context> & { session: { handled: boolean } };
+export const bot = new Bot<BotContext>(process.env.TELEGRAM_TOKEN || "");
+bot.use(guard(and(isPrivateChat, isUserHasId(...WHITELIST)))); //, reply("/start is only available in private chat!")
 
 bot.use(conversations());
 bot.use(async (ctx, next) => {
   ctx.session = { handled: false };
+  const convosActive = Object.keys(ctx.conversation.active()).length > 0;
   await next();
-  if (!ctx.session.handled && ctx.message) handleMessage(ctx, devBotProxy);
+  if (!ctx.session.handled && !convosActive && ctx.message) handleMessage(ctx, devBotProxy);
 });
 bot.command("start", ctx => ctx.reply(replies.botIntro));
 
