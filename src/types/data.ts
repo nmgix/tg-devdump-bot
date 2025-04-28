@@ -3,6 +3,7 @@ export type BotData = {
   storedMessages: number;
   storedFiles: number;
   existingTopics: string[];
+  errorMessageIds: number[];
 };
 
 import fs, { writeFileSync } from "fs";

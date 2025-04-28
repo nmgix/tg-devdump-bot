@@ -1,10 +1,11 @@
 {
-  "currentTopic": "snowy_shooter2",
-  "storedMessages": 6,
-  "storedFiles": 1,
+  "currentTopic": "sow",
+  "storedMessages": 24,
+  "storedFiles": 12,
   "existingTopics": [
+    "sow",
     "hehe haha",
-    "heieie haha",
-    "snowy_shooter2"
-  ]
+    "heieie haha"
+  ],
+  "errorMessageIds": []
 }

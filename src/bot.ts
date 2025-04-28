@@ -24,6 +24,13 @@ bot.use(async (ctx, next) => {
   await next();
   if (!ctx.session.handled && !convosActive && ctx.message) handleMessage(ctx, devBotProxy);
 });
+bot.use(async (ctx, next) => {
+  if (devBotProxy.errorMessageIds.length > 0) {
+    const successful = await ctx.deleteMessages(devBotProxy.errorMessageIds);
+    if (successful) devBotProxy.errorMessageIds = [];
+  }
+  await next();
+});
 bot.command("start", ctx => ctx.reply(replies.botIntro));
 
 import topicCrudWrapper, { commands as topicCommands } from "./routes/topic.crud";

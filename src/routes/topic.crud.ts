@@ -62,6 +62,7 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
     try {
       const posts: TopicData[] = fs
         .readdirSync(postsPath, { withFileTypes: true })
+        .filter(f => f.isDirectory())
         // TODO: .length неправильное кол-во будет возвращать ибо все посты сейчас идут в кучу в одну папку а не подпапки
         .map(topic => ({ label: topic.name, postsAmount: fs.readdirSync(path.join(postsPath, topic.name)).length }))
         .sort((a, b) => b.postsAmount - a.postsAmount);
@@ -88,7 +89,8 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
       await ctx.answerCallbackQuery();
       console.log(error);
       // replies.topicHeader(`\n${replies.topicError}`)
-      await ctx.reply(replies.topicError);
+      const errorReply = await ctx.reply(replies.topicError);
+      botProxy.errorMessageIds = [...botProxy.errorMessageIds, errorReply.message_id];
     }
   });
   // inline кнопка с именем топика чтобы выбрать его
@@ -115,9 +117,10 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
   // редактирование топика
   async function editTopic(conversation: Conversation, ctx0: Context) {
     try {
-      await ctx0.reply(replies.topicOldName, { reply_markup: { force_reply: true } });
+      // ctx0.deleteMessage();
+      const botReply1 = await ctx0.reply(replies.topicOldName, { reply_markup: { force_reply: true } });
       const ctx1 = await conversation.waitFor("message:text");
-      ctx0.deleteMessage();
+
       if (typeof ctx1.message.text !== "string" || ctx1.message.text.trim().length < MIN_DEVPOST_NAME_LENGTH) {
         throw new Error(ctx1.message.text.trim().length === 0 ? replies.topicLengthZero : replies.topicLengthError(MIN_DEVPOST_NAME_LENGTH));
       }
@@ -125,9 +128,13 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
       if (!botProxy.existingTopics.includes(ctx1.message.text)) throw new Error("Указанный топик не найден");
       const oldTopic = ctx1.message.text.trim();
 
-      await ctx1.reply(replies.topicNewName, { reply_markup: { force_reply: true } });
-      const ctx2 = await conversation.waitFor("message:text");
+      ctx0.deleteMessages([botReply1.message_id]);
       ctx1.deleteMessage();
+
+      const botReply2 = await ctx1.reply(replies.topicNewName, { reply_markup: { force_reply: true } });
+      const ctx2 = await conversation.waitFor("message:text");
+      ctx1.deleteMessages([botReply2.message_id]);
+      ctx2.deleteMessage();
       if (typeof ctx2.message.text !== "string" || ctx2.message.text.trim().length < MIN_DEVPOST_NAME_LENGTH) {
         throw new Error(ctx2.message.text.trim().length === 0 ? replies.topicLengthZero : replies.topicLengthError(MIN_DEVPOST_NAME_LENGTH));
       }
@@ -137,13 +144,15 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
       botProxy.existingTopics = [...botProxy.existingTopics.filter(t => t !== oldTopic), newTopic];
       await conversation.external(() => fs.renameSync(path.join(postsPath, oldTopic), path.join(postsPath, newTopic)));
 
+      ctx0.deleteMessage();
       await ctx2.reply(`${replies.topicEdited}. Текущий: **${botProxy.currentTopic.replace(/([\\_*@])/g, "\\$1")}**`, {
         reply_markup: renderInlineTopicKeyboard(),
         parse_mode: "Markdown"
       });
     } catch (error) {
       console.dir(error);
-      await ctx0.reply((error as Error).message);
+      const errorReply = await ctx0.reply(replies.topicError);
+      botProxy.errorMessageIds = [...botProxy.errorMessageIds, errorReply.message_id];
       return;
     }
   }
@@ -155,7 +164,8 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
       // await ctx.editMessageText(replies.topicEdited, { reply_markup: renderInlineTopicKeyboard() });
     } catch (error) {
       console.log(error);
-      await ctx.reply(replies.topicError);
+      const errorReply = await ctx.reply(replies.topicError);
+      botProxy.errorMessageIds = [...botProxy.errorMessageIds, errorReply.message_id];
     }
   });
 
@@ -178,8 +188,9 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
         parse_mode: "Markdown"
       });
     } catch (error) {
-      console.log(error);
-      await ctx0.reply((error as Error).message);
+      console.dir(error);
+      const errorReply = await ctx0.reply(replies.topicError);
+      botProxy.errorMessageIds = [...botProxy.errorMessageIds, errorReply.message_id];
     }
   }
   bot.use(createConversation(createTopic));
@@ -190,7 +201,8 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
       await ctx.conversation.enter("createTopic");
     } catch (error) {
       console.log(error);
-      await ctx.reply(replies.topicError);
+      const errorReply = await ctx.reply(replies.topicError);
+      botProxy.errorMessageIds = [...botProxy.errorMessageIds, errorReply.message_id];
     }
   });
 }
