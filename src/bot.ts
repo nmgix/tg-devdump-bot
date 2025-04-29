@@ -1,10 +1,11 @@
-import { Bot, webhookCallback, type Context } from "grammy";
+import { Bot, InlineKeyboard, webhookCallback, type Context } from "grammy";
 
 import express from "express";
 import { guard, isPrivateChat, reply, isUserHasId, and } from "grammy-guard";
 
-// мой tg id -----\/
-const WHITELIST = [1039326679];
+const WHITELIST = String(process.env.WHITELIST_IDS)
+  .split(",")
+  .map(id => Number(id));
 
 // import topicMessagesHandlingWrapper from "./routes/topic.messages-handling";
 import { handleMessage } from "./routes/topic.messages-handling";
@@ -15,7 +16,23 @@ import { type ConversationFlavor, conversations } from "@grammyjs/conversations"
 
 export type BotContext = ConversationFlavor<Context> & { session: { handled: boolean } };
 export const bot = new Bot<BotContext>(process.env.TELEGRAM_TOKEN || "");
-bot.use(guard(and(isPrivateChat, isUserHasId(...WHITELIST)))); //, reply("/start is only available in private chat!")
+bot.use(
+  guard(
+    and(
+      // ctx => {
+      //   let isprivate = isPrivateChat(ctx);
+      //   console.log({ isPrivate: isprivate });
+      //   return isprivate;
+      // },
+      // ибо не даёт inline query использовать
+      ctx => {
+        let whitelist = isUserHasId(...WHITELIST)(ctx);
+        // console.log({ iswhitelist: whitelist });
+        return whitelist;
+      }
+    )
+  )
+); //, reply("/start is only available in private chat!")
 
 bot.use(conversations());
 bot.use(async (ctx, next) => {

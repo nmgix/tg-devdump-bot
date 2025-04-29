@@ -205,4 +205,72 @@ export default function (bot: typeof botInstance, botProxy: BotData) {
       botProxy.errorMessageIds = [...botProxy.errorMessageIds, errorReply.message_id];
     }
   });
+
+  bot.inlineQuery(/.*/, async ctx => {
+    console.log("inline querry attempt");
+    try {
+      await ctx.answerInlineQuery(
+        [
+          {
+            type: "article",
+            id: "0",
+            title: `${botProxy.existingTopics.length} топиков, текущий ${botProxy.currentTopic}`,
+            input_message_content: {
+              message_text: "```>>> kernel error: nmgix данька задолбался это кодить```\n",
+              parse_mode: "Markdown"
+            },
+            description: "hehej",
+            url: "https://t.me/developments_gamedev_bot"
+            // reply_markup
+          },
+          {
+            type: "location",
+            id: "1",
+            latitude: 50.5186,
+            longitude: 5.2408,
+            title: "Там где вашу дочку еут",
+            heading: 0
+          }
+        ],
+        { button: { text: "В бота", start_parameter: "uwu" }, cache_time: 1, next_offset: "" }
+      );
+    } catch (error) {
+      console.log(error);
+    }
+  });
+
+  // const queryRegEx = /effect (monospace|bold|italic) (.*)/;
+  // bot.inlineQuery("wow", async ctx => {
+  //   console.log(ctx);
+  //   const fullQuery = ctx.inlineQuery.query;
+  //   const fullQueryMatch = fullQuery.match(queryRegEx);
+  //   // if (!fullQueryMatch) return;
+
+  //   // const effectLabel = fullQueryMatch[1];
+  //   // const originalText = fullQueryMatch[2];
+
+  //   // const effectCode = allEffects.find(effect => effect.label.toLowerCase() === effectLabel.toLowerCase())?.code;
+  //   // const modifiedText = applyTextEffect(originalText, effectCode as Variant);
+
+  //   await ctx.answerInlineQuery(
+  //     [
+  //       {
+  //         type: "article",
+  //         id: "text-effect",
+  //         title: "Text Effects",
+  //         input_message_content: {
+  //           message_text: `Original: ${""}
+  // Modified: ${""}`,
+  //           parse_mode: "HTML"
+  //         },
+  //         reply_markup: new InlineKeyboard().switchInline("Share", fullQuery),
+  //         url: "http://t.me/EludaDevSmarterBot",
+  //         description: "Create stylish Unicode text, all within Telegram."
+  //       }
+  //     ],
+  //     // { cache_time: 30 * 24 * 3600 } // one month in seconds
+  //     { is_personal: false, cache_time: 0 }
+  //   );
+  // });
+  // bot.on("inline_query", ctx => ctx.answerInlineQuery([]));
 }

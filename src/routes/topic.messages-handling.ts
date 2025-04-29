@@ -38,6 +38,7 @@ export async function handleMessage(ctx: Context, botProxy: BotData) {
         res(true);
       }).then(() => (botProxy.storedFiles = botProxy.storedFiles + 1));
     }
+    // ctx.answerCallbackQuery("wowowo");
     return true;
   } catch (error) {
     // try {
